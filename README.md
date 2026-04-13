@@ -17,17 +17,58 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+Real recommendation systems predict what you will like next by matching behavioral datasets with machine learning models that detect patterns in what you, and millions of others, consume. Real‑world recommenders like Spotify and YouTube use two kinds of data: features of the item (such as genre, mood, tempo, or video topic) and features of the user (their watch/listen history, skips, likes, and search behavior). The system first builds a representation of each item from its content features, then builds a representation of the user’s preferences based on the patterns in their past behavior. These inputs feed into a ranking model that scores every possible item and selects the ones the user is most likely to enjoy next. This separates the raw input data (item features and user history) from the learned preference profile (what the model thinks the user likes) and from the final ranking step (choosing which items to show). Two foundational approaches are collaborative-based filtering and content-based filtering, and many real platforms use a hybrid of both. 
 
-Some prompts to answer:
+### Song Features
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+Each `Song` is loaded from `data/songs.csv`. Our model uses three features:
 
-You can include a simple diagram or bullet list if helpful.
+- **genre** — categorical label (e.g. `lofi`, `pop`, `rock`, `ambient`)
+- **mood** — categorical label (e.g. `chill`, `intense`, `happy`, `focused`)
+- **energy** — how intense or active the song feels (0 = very calm, 1 = very intense)
+
+---
+
+### UserProfile
+
+A `UserProfile` stores the user's target preferences as a single snapshot:
+
+- `favorite_genre` — their preferred genre category
+- `favorite_mood` — their preferred mood category
+- `target_energy` — the energy level they want right now (0–1)
+
+---
+
+### Scoring a Song
+
+For each song, the `Recommender` computes a **total score** as a weighted sum of partial scores:
+
+```
+total_score =
+  2.0 × genre_match       (1.0 if genre matches, else 0.0)
+  1.5 × mood_match        (1.0 if mood matches, else 0.0)
+  1.0 × energy_proximity  (1 − |song.energy − user.target_energy|)
+```
+
+**Proximity scoring** is used for energy. Rather than rewarding high or low values, it rewards songs whose energy is *closest to the user's target*. A perfect match scores 1.0; the furthest possible value scores 0.0. This prevents the system from always pushing toward extremes (e.g. always recommending the highest-energy songs to someone who wants moderate energy).
+
+---
+
+### Choosing Recommendations
+
+After scoring every song, the `Recommender`:
+
+1. Sorts all songs by `total_score` in descending order
+2. Returns the top `k` songs (default `k = 5`)
+
+```
+User Profile
+    │
+    ▼
+Score every song  ──►  sort by score  ──►  return top k
+```
+
+Genre and mood carry the most weight because they represent the broadest musical identity. Energy refines the ranking within that category.
 
 ---
 
